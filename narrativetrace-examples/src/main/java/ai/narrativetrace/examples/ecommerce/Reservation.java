@@ -1,4 +1,3 @@
 package ai.narrativetrace.examples.ecommerce;
 
-public record Reservation(String productId, int quantity) {
-}
+public record Reservation(String productId, int quantity) {}

@@ -7,8 +7,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 @EnableNarrativeTrace
 public class DefaultPackageConfig {
-    @Bean
-    GreetingService greetingService() {
-        return new DefaultGreetingService();
-    }
+  @Bean
+  GreetingService greetingService() {
+    return new DefaultGreetingService();
+  }
 }

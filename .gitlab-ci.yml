@@ -1,0 +1,35 @@
+stages:
+  - build
+  - mutation
+
+build:
+  stage: build
+  image: eclipse-temurin:17-jdk
+  script:
+    - ./gradlew check
+  cache:
+    key: gradle
+    paths:
+      - .gradle/
+      - build/
+    policy: pull-push
+
+mutation:
+  stage: mutation
+  image: eclipse-temurin:17-jdk
+  script:
+    - ./gradlew pitest
+  artifacts:
+    paths:
+      - "*/build/reports/pitest/"
+    expire_in: 7 days
+  cache:
+    key: gradle
+    paths:
+      - .gradle/
+      - build/
+    policy: pull
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+    - if: $CI_MERGE_REQUEST_ID

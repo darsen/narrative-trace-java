@@ -1,3 +1,10 @@
+plugins {
+    id("narrativetrace-publish")
+}
+
+extra["publishName"] = "NarrativeTrace SLF4J"
+extra["publishDescription"] = "SLF4J bridge with MDC propagation"
+
 dependencies {
     implementation(project(":narrativetrace-core"))
     implementation("org.slf4j:slf4j-api:2.0.16")

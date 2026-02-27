@@ -11,7 +11,6 @@ import org.junit.jupiter.api.extension.ExtendWith
 
 @ExtendWith(NarrativeTraceExtension::class)
 class LendingServiceTest {
-
     @Test
     fun memberBorrowsAvailableBook(context: NarrativeContext) {
         val lending = wireServices(context)
@@ -44,14 +43,22 @@ class LendingServiceTest {
     }
 
     private fun wireServices(context: NarrativeContext): LendingService {
-        val catalog = NarrativeTraceProxy.trace(
-            InMemoryCatalogService(), CatalogService::class.java, context
-        )
-        val members = NarrativeTraceProxy.trace(
-            InMemoryMemberService(), MemberService::class.java, context
-        )
+        val catalog =
+            NarrativeTraceProxy.trace(
+                InMemoryCatalogService(),
+                CatalogService::class.java,
+                context,
+            )
+        val members =
+            NarrativeTraceProxy.trace(
+                InMemoryMemberService(),
+                MemberService::class.java,
+                context,
+            )
         return NarrativeTraceProxy.trace(
-            DefaultLendingService(catalog, members), LendingService::class.java, context
+            DefaultLendingService(catalog, members),
+            LendingService::class.java,
+            context,
         )
     }
 }

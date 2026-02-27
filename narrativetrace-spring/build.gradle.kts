@@ -1,3 +1,10 @@
+plugins {
+    id("narrativetrace-publish")
+}
+
+extra["publishName"] = "NarrativeTrace Spring"
+extra["publishDescription"] = "Spring Framework integration with BeanPostProcessor"
+
 dependencies {
     implementation(project(":narrativetrace-core"))
     implementation(project(":narrativetrace-proxy"))

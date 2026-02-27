@@ -1,5 +1,5 @@
 package ai.narrativetrace.examples.minecraft.refactored;
 
 public interface CraftingTable {
-    Item craft(Recipe recipe);
+  Item craft(Recipe recipe);
 }

@@ -1,33 +1,37 @@
 package ai.narrativetrace.clarity;
 
+/**
+ * A specific naming issue found during clarity analysis, with category, severity, and suggestion.
+ */
 public record ClarityIssue(
-        String category,
-        String element,
-        String suggestion,
-        Severity severity,
-        int occurrences,
-        double impactScore
-) {
-    public enum Severity {
-        HIGH(3), MEDIUM(2), LOW(1);
+    String category,
+    String element,
+    String suggestion,
+    Severity severity,
+    int occurrences,
+    double impactScore) {
+  public enum Severity {
+    HIGH(3),
+    MEDIUM(2),
+    LOW(1);
 
-        private final int weight;
+    private final int weight;
 
-        Severity(int weight) {
-            this.weight = weight;
-        }
-
-        public int weight() {
-            return weight;
-        }
+    Severity(int weight) {
+      this.weight = weight;
     }
 
-    public ClarityIssue(String category, String element, String suggestion) {
-        this(category, element, suggestion, Severity.MEDIUM, 1, Severity.MEDIUM.weight());
+    public int weight() {
+      return weight;
     }
+  }
 
-    public ClarityIssue withOccurrences(int occurrences) {
-        return new ClarityIssue(category, element, suggestion, severity, occurrences,
-                severity.weight() * occurrences);
-    }
+  public ClarityIssue(String category, String element, String suggestion) {
+    this(category, element, suggestion, Severity.MEDIUM, 1, Severity.MEDIUM.weight());
+  }
+
+  public ClarityIssue withOccurrences(int occurrences) {
+    return new ClarityIssue(
+        category, element, suggestion, severity, occurrences, severity.weight() * occurrences);
+  }
 }

@@ -1,3 +1,52 @@
+repositories {
+    mavenCentral()
+}
+
+val publishedModules = subprojects.filter { sub ->
+    sub.name !in setOf(
+        "narrativetrace-benchmarks",
+        "narrativetrace-build-tests",
+        "narrativetrace-gradle-plugin",
+        "narrativetrace-examples",
+        "narrativetrace-junit4-example"
+    )
+}
+
+tasks.register<Javadoc>("aggregateJavadoc") {
+    description = "Generates aggregated Javadoc across all published modules"
+    group = "documentation"
+    title = "NarrativeTrace API"
+    dependsOn(publishedModules.map { it.tasks.named("classes") })
+    source(publishedModules.map { it.the<SourceSetContainer>()["main"].allJava })
+    classpath = files(publishedModules.map { it.the<SourceSetContainer>()["main"].compileClasspath })
+    destinationDir = layout.buildDirectory.dir("docs/aggregateJavadoc").get().asFile
+    options {
+        this as StandardJavadocDocletOptions
+        addStringOption("Xdoclint:none", "-quiet")
+        links("https://docs.oracle.com/en/java/javase/17/docs/api/")
+    }
+}
+
+tasks.register<Copy>("generateLlmsDocs") {
+    description = "Copies llms-full.md to build/site/llms-full.txt and generates llms.txt"
+    group = "documentation"
+    from("documentation/llms-full.md")
+    into(layout.buildDirectory.dir("site"))
+    rename("llms-full.md", "llms-full.txt")
+    doLast {
+        val llmsTxt = file("documentation/llms.txt")
+        if (llmsTxt.exists()) {
+            llmsTxt.copyTo(layout.buildDirectory.file("site/llms.txt").get().asFile, overwrite = true)
+        }
+    }
+}
+
+tasks.register("pitest") {
+    description = "Runs mutation testing (PIT) across core, proxy, and clarity modules"
+    group = "verification"
+    dependsOn(":narrativetrace-core:pitest", ":narrativetrace-proxy:pitest", ":narrativetrace-clarity:pitest")
+}
+
 tasks.register("metricsReport") {
     description = "Aggregates NCSS metrics from all modules, sorted by size (descending)"
     group = "verification"
@@ -12,9 +61,23 @@ subprojects {
     apply(plugin = "java-library")
     apply(plugin = "jacoco")
     apply(plugin = "pmd")
+    apply(plugin = "com.diffplug.spotless")
+
+    configure<com.diffplug.gradle.spotless.SpotlessExtension> {
+        java {
+            googleJavaFormat("1.25.2")
+            targetExclude("build/**")
+        }
+        if (project.name == "narrativetrace-examples") {
+            kotlin {
+                ktlint("1.5.0")
+                targetExclude("build/**")
+            }
+        }
+    }
 
     group = "ai.narrativetrace"
-    version = "0.1.0-SNAPSHOT"
+    version = "0.2.0-SNAPSHOT"
 
     repositories {
         mavenCentral()
@@ -108,6 +171,20 @@ subprojects {
 
         tasks.named("check") {
             dependsOn(tasks.named("jacocoTestCoverageVerification"))
+        }
+    }
+
+    if (name in setOf("narrativetrace-core", "narrativetrace-proxy", "narrativetrace-clarity")) {
+        apply(plugin = "info.solidsoft.pitest")
+        configure<info.solidsoft.gradle.pitest.PitestPluginExtension> {
+            pitestVersion = "1.17.4"
+            junit5PluginVersion = "1.2.1"
+            threads = 4
+            outputFormats = setOf("HTML", "XML")
+            timestampedReports = false
+            timeoutConstInMillis = 8000
+            mutators = setOf("DEFAULTS")
+            mutationThreshold = 65
         }
     }
 }

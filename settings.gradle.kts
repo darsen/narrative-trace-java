@@ -1,3 +1,20 @@
+plugins {
+    id("com.gradleup.nmcp.settings").version("1.4.4")
+}
+
+val secrets = java.util.Properties().apply {
+    val file = file("secret.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+nmcpSettings {
+    centralPortal {
+        username = secrets.getProperty("mavenCentralUsername")
+        password = secrets.getProperty("mavenCentralPassword")
+        publishingType = "USER_MANAGED"
+    }
+}
+
 rootProject.name = "narrativetrace-java"
 
 include("narrativetrace-core")

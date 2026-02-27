@@ -1,5 +1,5 @@
 package ai.narrativetrace.benchmarks;
 
 public interface SummaryService {
-    SummaryResult execute(String input);
+  SummaryResult execute(String input);
 }

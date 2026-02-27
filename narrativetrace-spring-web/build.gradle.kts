@@ -1,3 +1,10 @@
+plugins {
+    id("narrativetrace-publish")
+}
+
+extra["publishName"] = "NarrativeTrace Spring Web"
+extra["publishDescription"] = "Spring Web integration for servlet filter configuration"
+
 dependencies {
     implementation(project(":narrativetrace-core"))
     implementation(project(":narrativetrace-servlet"))

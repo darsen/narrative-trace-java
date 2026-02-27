@@ -1,3 +1,10 @@
+plugins {
+    id("narrativetrace-publish")
+}
+
+extra["publishName"] = "NarrativeTrace Servlet"
+extra["publishDescription"] = "Servlet filter for request lifecycle tracing"
+
 dependencies {
     implementation(project(":narrativetrace-core"))
     compileOnly("jakarta.servlet:jakarta.servlet-api:6.0.0")

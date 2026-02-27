@@ -1,3 +1,10 @@
+plugins {
+    id("narrativetrace-publish")
+}
+
+extra["publishName"] = "NarrativeTrace Agent"
+extra["publishDescription"] = "Java bytecode agent for automatic method tracing"
+
 dependencies {
     implementation(project(":narrativetrace-core"))
     implementation("org.ow2.asm:asm:9.7.1")

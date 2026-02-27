@@ -1,58 +1,59 @@
 package ai.narrativetrace.junit4;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass;
+
+import java.io.ByteArrayOutputStream;
+import java.io.PrintStream;
+import java.nio.file.Path;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.platform.launcher.core.LauncherDiscoveryRequestBuilder;
 import org.junit.platform.launcher.core.LauncherFactory;
 
-import java.io.ByteArrayOutputStream;
-import java.io.PrintStream;
-import java.nio.file.Path;
-
-import static org.assertj.core.api.Assertions.assertThat;
-import static org.junit.platform.engine.discovery.DiscoverySelectors.selectClass;
-
 class NarrativeTraceRuleIntegrationTest {
 
-    @Test
-    void failingJunit4TestPrintsFailureReport() {
-        var oldOut = System.out;
-        var captured = new ByteArrayOutputStream();
-        System.setOut(new PrintStream(captured));
-        try {
-            LauncherFactory.create().execute(
-                    LauncherDiscoveryRequestBuilder.request()
-                            .selectors(selectClass(Junit4FailingFixture.class))
-                            .build());
-        } finally {
-            System.setOut(oldOut);
-        }
-
-        var output = captured.toString();
-        assertThat(output).contains("Scenario: Failing test");
-        assertThat(output).contains("Service.doWork");
+  @Test
+  void failingJunit4TestPrintsFailureReport() {
+    var oldOut = System.out;
+    var captured = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(captured));
+    try {
+      LauncherFactory.create()
+          .execute(
+              LauncherDiscoveryRequestBuilder.request()
+                  .selectors(selectClass(Junit4FailingFixture.class))
+                  .build());
+    } finally {
+      System.setOut(oldOut);
     }
 
-    @Test
-    void outputSystemPropertyEnablesFileWriting(@TempDir Path tempDir) {
-        System.setProperty("narrativetrace.output", "true");
-        System.setProperty("narrativetrace.outputDir", tempDir.toString());
-        try {
-            LauncherFactory.create().execute(
-                    LauncherDiscoveryRequestBuilder.request()
-                            .selectors(selectClass(Junit4FailingFixture.class))
-                            .build());
-        } finally {
-            System.clearProperty("narrativetrace.output");
-            System.clearProperty("narrativetrace.outputDir");
-        }
+    var output = captured.toString();
+    assertThat(output).contains("Scenario: Failing test");
+    assertThat(output).contains("Service.doWork");
+  }
 
-        var traceFile = tempDir.resolve("traces/Junit4FailingFixture/failing_test.md");
-        assertThat(traceFile).exists();
-        try {
-            assertThat(java.nio.file.Files.readString(traceFile)).contains("Service.doWork");
-        } catch (java.io.IOException e) {
-            throw new RuntimeException(e);
-        }
+  @Test
+  void outputSystemPropertyEnablesFileWriting(@TempDir Path tempDir) {
+    System.setProperty("narrativetrace.output", "true");
+    System.setProperty("narrativetrace.outputDir", tempDir.toString());
+    try {
+      LauncherFactory.create()
+          .execute(
+              LauncherDiscoveryRequestBuilder.request()
+                  .selectors(selectClass(Junit4FailingFixture.class))
+                  .build());
+    } finally {
+      System.clearProperty("narrativetrace.output");
+      System.clearProperty("narrativetrace.outputDir");
     }
+
+    var traceFile = tempDir.resolve("traces/Junit4FailingFixture/failing_test.md");
+    assertThat(traceFile).exists();
+    try {
+      assertThat(java.nio.file.Files.readString(traceFile)).contains("Service.doWork");
+    } catch (java.io.IOException e) {
+      throw new RuntimeException(e);
+    }
+  }
 }

@@ -1,3 +1,10 @@
+plugins {
+    id("narrativetrace-publish")
+}
+
+extra["publishName"] = "NarrativeTrace JUnit 4"
+extra["publishDescription"] = "JUnit 4 rule for automatic trace output"
+
 tasks.test {
     exclude("**/Junit4FailingFixture.class")
     exclude("**/Junit4MultiTestFixture.class")

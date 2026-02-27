@@ -14,7 +14,10 @@ import ai.narrativetrace.core.render.NarrativeRenderer;
 import ai.narrativetrace.core.tree.TraceTree;
 import ai.narrativetrace.diagrams.MermaidSequenceDiagramRenderer;
 import ai.narrativetrace.diagrams.PlantUmlSequenceDiagramRenderer;
-
+import java.io.IOException;
+import java.nio.file.Path;
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterTestExecutionCallback;
 import org.junit.jupiter.api.extension.BeforeEachCallback;
@@ -22,159 +25,217 @@ import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.api.extension.ParameterResolver;
 
-import java.io.IOException;
-import java.nio.file.Path;
-import java.util.LinkedHashMap;
-import java.util.Map;
+/**
+ * JUnit 5 extension that automatically captures traces and produces output for each test.
+ *
+ * <p>Register via {@code @ExtendWith(NarrativeTraceExtension.class)} on your test class. The
+ * extension:
+ *
+ * <ul>
+ *   <li><strong>BeforeEach:</strong> creates a fresh {@link ThreadLocalNarrativeContext}
+ *   <li><strong>AfterTestExecution:</strong> captures the trace, prints failure reports, writes
+ *       Markdown/Mermaid/PlantUML/JSON files (when output is enabled)
+ *   <li><strong>AfterAll:</strong> accumulates traces for the combined clarity report
+ *   <li><strong>ParameterResolver:</strong> injects {@link NarrativeContext} into test methods
+ * </ul>
+ *
+ * <p><strong>Enabling output:</strong> Set the system property {@code narrativetrace.output=true}
+ * (or JUnit configuration parameter). Additional properties:
+ *
+ * <ul>
+ *   <li>{@code narrativetrace.outputDir} — output directory (default: {@code build/narrativetrace})
+ *   <li>{@code narrativetrace.format} — output format: {@code markdown}, {@code prose}, or {@code
+ *       indented} (default: {@code markdown})
+ * </ul>
+ *
+ * <pre>{@code
+ * @ExtendWith(NarrativeTraceExtension.class)
+ * class OrderServiceTest {
+ *     @Test
+ *     void placesOrder(NarrativeContext context) {
+ *         var service = NarrativeTraceProxy.trace(new OrderServiceImpl(), OrderService.class, context);
+ *         service.placeOrder("item-1", 3);
+ *     }
+ * }
+ * }</pre>
+ *
+ * @see ai.narrativetrace.core.context.NarrativeContext
+ * @see ai.narrativetrace.core.output.TraceTestSupport
+ */
+public class NarrativeTraceExtension
+    implements BeforeEachCallback, AfterTestExecutionCallback, AfterAllCallback, ParameterResolver {
 
-public class NarrativeTraceExtension implements BeforeEachCallback, AfterTestExecutionCallback, AfterAllCallback, ParameterResolver {
+  private static final ExtensionContext.Namespace NAMESPACE =
+      ExtensionContext.Namespace.create(NarrativeTraceExtension.class);
+  private static final String CONTEXT_KEY = "narrativeContext";
+  private static final String TRACES_KEY = "accumulatedTraces";
+  private static final String GLOBAL_KEY = "globalTraceAccumulator";
 
-    private static final ExtensionContext.Namespace NAMESPACE =
-            ExtensionContext.Namespace.create(NarrativeTraceExtension.class);
-    private static final String CONTEXT_KEY = "narrativeContext";
-    private static final String TRACES_KEY = "accumulatedTraces";
-    private static final String GLOBAL_KEY = "globalTraceAccumulator";
+  static class GlobalTraceAccumulator implements ExtensionContext.Store.CloseableResource {
+    private final Map<String, TraceTree> allTraces = new LinkedHashMap<>();
+    private Path outputDir;
 
-    static class GlobalTraceAccumulator implements ExtensionContext.Store.CloseableResource {
-        private final Map<String, TraceTree> allTraces = new LinkedHashMap<>();
-        private Path outputDir;
-
-        synchronized void contribute(Map<String, TraceTree> traces, Path outputDir) {
-            allTraces.putAll(traces);
-            if (this.outputDir == null) {
-                this.outputDir = outputDir;
-            }
-        }
-
-        @Override
-        public void close() {
-            if (allTraces.isEmpty()) {
-                return;
-            }
-            var extension = new NarrativeTraceExtension();
-            try {
-                TraceTestSupport.writeClarityReport(allTraces, outputDir,
-                        extension::renderClarityReport, extension::exportClarityJson);
-            } catch (IOException e) {
-                System.err.println("Failed to write clarity report: " + e.getMessage());
-            }
-            TraceTestSupport.printConsoleSummary(allTraces, outputDir, System.out,
-                    tree -> new ClarityAnalyzer().analyze(tree).overallScore());
-        }
+    synchronized void contribute(Map<String, TraceTree> traces, Path outputDir) {
+      allTraces.putAll(traces);
+      if (this.outputDir == null) {
+        this.outputDir = outputDir;
+      }
     }
 
     @Override
-    public void beforeEach(ExtensionContext extensionContext) {
-        var context = new ThreadLocalNarrativeContext();
-        extensionContext.getStore(NAMESPACE).put(CONTEXT_KEY, context);
+    public void close() {
+      if (allTraces.isEmpty()) {
+        return;
+      }
+      var extension = new NarrativeTraceExtension();
+      try {
+        TraceTestSupport.writeClarityReport(
+            allTraces, outputDir, extension::renderClarityReport, extension::exportClarityJson);
+      } catch (IOException e) {
+        System.err.println("Failed to write clarity report: " + e.getMessage());
+      }
+      TraceTestSupport.printConsoleSummary(
+          allTraces,
+          outputDir,
+          System.out,
+          tree -> new ClarityAnalyzer().analyze(tree).overallScore());
+    }
+  }
+
+  @Override
+  public void beforeEach(ExtensionContext extensionContext) {
+    var context = new ThreadLocalNarrativeContext();
+    extensionContext.getStore(NAMESPACE).put(CONTEXT_KEY, context);
+  }
+
+  @Override
+  public void afterTestExecution(ExtensionContext extensionContext) {
+    var context = extensionContext.getStore(NAMESPACE).get(CONTEXT_KEY, NarrativeContext.class);
+    if (context == null) {
+      return;
+    }
+    var trace = context.captureTrace();
+    var exception = extensionContext.getExecutionException().orElse(null);
+    var failed = exception != null;
+    var displayName = extensionContext.getDisplayName();
+
+    handleAfterTest(displayName, failed, trace, exception, System.out);
+
+    if ("true".equalsIgnoreCase(configParam(extensionContext, "narrativetrace.output", "false"))) {
+      writeOutputAndAccumulate(extensionContext, displayName, trace, failed);
+    }
+  }
+
+  private void writeOutputAndAccumulate(
+      ExtensionContext extensionContext, String displayName, TraceTree trace, boolean failed) {
+    var outputDir =
+        Path.of(configParam(extensionContext, "narrativetrace.outputDir", "build/narrativetrace"));
+    var format = configParam(extensionContext, "narrativetrace.format", "markdown");
+    var testClassName = extensionContext.getRequiredTestClass().getName();
+    var testMethodName = extensionContext.getRequiredTestMethod().getName();
+    try {
+      NarrativeRenderer mermaid = new MermaidSequenceDiagramRenderer()::render;
+      NarrativeRenderer plantuml = new PlantUmlSequenceDiagramRenderer()::render;
+      TraceTestSupport.writeTraceFile(
+          testClassName,
+          testMethodName,
+          displayName,
+          trace,
+          failed,
+          outputDir,
+          System.out,
+          format,
+          mermaid,
+          plantuml);
+    } catch (IOException e) {
+      System.err.println("Failed to write trace file: " + e.getMessage());
     }
 
-    @Override
-    public void afterTestExecution(ExtensionContext extensionContext) {
-        var context = extensionContext.getStore(NAMESPACE).get(CONTEXT_KEY, NarrativeContext.class);
-        if (context == null) {
-            return;
-        }
-        var trace = context.captureTrace();
-        var exception = extensionContext.getExecutionException().orElse(null);
-        var failed = exception != null;
-        var displayName = extensionContext.getDisplayName();
-
-        handleAfterTest(displayName, failed, trace, exception, System.out);
-
-        if ("true".equalsIgnoreCase(configParam(extensionContext, "narrativetrace.output", "false"))) {
-            writeOutputAndAccumulate(extensionContext, displayName, trace, failed);
-        }
+    if (!trace.isEmpty()) {
+      var scenario = ScenarioFramer.humanize(displayName);
+      var classStore = extensionContext.getParent().orElseThrow().getStore(NAMESPACE);
+      @SuppressWarnings("unchecked")
+      var accumulated =
+          (Map<String, TraceTree>)
+              classStore.getOrComputeIfAbsent(
+                  TRACES_KEY, k -> new LinkedHashMap<String, TraceTree>(), Map.class);
+      accumulated.put(scenario, trace);
     }
+  }
 
-    private void writeOutputAndAccumulate(ExtensionContext extensionContext,
-                                          String displayName, TraceTree trace, boolean failed) {
-        var outputDir = Path.of(configParam(extensionContext, "narrativetrace.outputDir", "build/narrativetrace"));
-        var format = configParam(extensionContext, "narrativetrace.format", "markdown");
-        var testClassName = extensionContext.getRequiredTestClass().getName();
-        var testMethodName = extensionContext.getRequiredTestMethod().getName();
-        try {
-            NarrativeRenderer mermaid = new MermaidSequenceDiagramRenderer()::render;
-            NarrativeRenderer plantuml = new PlantUmlSequenceDiagramRenderer()::render;
-            TraceTestSupport.writeTraceFile(testClassName, testMethodName, displayName, trace, failed,
-                    outputDir, System.out, format, mermaid, plantuml);
-        } catch (IOException e) {
-            System.err.println("Failed to write trace file: " + e.getMessage());
-        }
-
-        if (!trace.isEmpty()) {
-            var scenario = ScenarioFramer.humanize(displayName);
-            var classStore = extensionContext.getParent().orElseThrow().getStore(NAMESPACE);
-            @SuppressWarnings("unchecked")
-            var accumulated = (Map<String, TraceTree>) classStore.getOrComputeIfAbsent(
-                    TRACES_KEY, k -> new LinkedHashMap<String, TraceTree>(), Map.class);
-            accumulated.put(scenario, trace);
-        }
+  @Override
+  public void afterAll(ExtensionContext extensionContext) {
+    var outputEnabled =
+        "true".equalsIgnoreCase(configParam(extensionContext, "narrativetrace.output", "false"));
+    if (!outputEnabled) {
+      return;
     }
-
-    @Override
-    public void afterAll(ExtensionContext extensionContext) {
-        var outputEnabled = "true".equalsIgnoreCase(
-                configParam(extensionContext, "narrativetrace.output", "false"));
-        if (!outputEnabled) {
-            return;
-        }
-        @SuppressWarnings("unchecked")
-        var accumulated = (Map<String, TraceTree>) extensionContext.getStore(NAMESPACE).get(TRACES_KEY, Map.class);
-        if (accumulated == null || accumulated.isEmpty()) {
-            return;
-        }
-        var outputDir = Path.of(configParam(extensionContext, "narrativetrace.outputDir", "build/narrativetrace"));
-        var rootStore = extensionContext.getRoot().getStore(NAMESPACE);
-        var accumulator = rootStore.getOrComputeIfAbsent(
-                GLOBAL_KEY, k -> new GlobalTraceAccumulator(), GlobalTraceAccumulator.class);
-        accumulator.contribute(accumulated, outputDir);
+    @SuppressWarnings("unchecked")
+    var accumulated =
+        (Map<String, TraceTree>) extensionContext.getStore(NAMESPACE).get(TRACES_KEY, Map.class);
+    if (accumulated == null || accumulated.isEmpty()) {
+      return;
     }
+    var outputDir =
+        Path.of(configParam(extensionContext, "narrativetrace.outputDir", "build/narrativetrace"));
+    var rootStore = extensionContext.getRoot().getStore(NAMESPACE);
+    var accumulator =
+        rootStore.getOrComputeIfAbsent(
+            GLOBAL_KEY, k -> new GlobalTraceAccumulator(), GlobalTraceAccumulator.class);
+    accumulator.contribute(accumulated, outputDir);
+  }
 
-    @Override
-    public boolean supportsParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
-        return parameterContext.getParameter().getType() == NarrativeContext.class;
-    }
+  @Override
+  public boolean supportsParameter(
+      ParameterContext parameterContext, ExtensionContext extensionContext) {
+    return parameterContext.getParameter().getType() == NarrativeContext.class;
+  }
 
-    @Override
-    public Object resolveParameter(ParameterContext parameterContext, ExtensionContext extensionContext) {
-        return extensionContext.getStore(NAMESPACE).get(CONTEXT_KEY, NarrativeContext.class);
-    }
+  @Override
+  public Object resolveParameter(
+      ParameterContext parameterContext, ExtensionContext extensionContext) {
+    return extensionContext.getStore(NAMESPACE).get(CONTEXT_KEY, NarrativeContext.class);
+  }
 
-    void handleAfterTest(String displayName, boolean failed, TraceTree trace, Throwable exception, java.io.PrintStream out) {
-        if (!trace.isEmpty()) {
-            var templateWarnings = TemplateWarningCollector.collect(trace);
-            var formatted = TemplateWarningCollector.format(templateWarnings);
-            if (!formatted.isEmpty()) {
-                out.print(formatted);
-            }
-        }
-        if (!failed || trace.isEmpty()) {
-            return;
-        }
-        var scenario = ScenarioFramer.frame(displayName);
-        var rendered = new IndentedTextRenderer().render(trace);
-        out.println(TraceTestSupport.buildFailureReport(scenario, rendered));
+  void handleAfterTest(
+      String displayName,
+      boolean failed,
+      TraceTree trace,
+      Throwable exception,
+      java.io.PrintStream out) {
+    if (!trace.isEmpty()) {
+      var templateWarnings = TemplateWarningCollector.collect(trace);
+      var formatted = TemplateWarningCollector.format(templateWarnings);
+      if (!formatted.isEmpty()) {
+        out.print(formatted);
+      }
     }
+    if (!failed || trace.isEmpty()) {
+      return;
+    }
+    var scenario = ScenarioFramer.frame(displayName);
+    var rendered = new IndentedTextRenderer().render(trace);
+    out.println(TraceTestSupport.buildFailureReport(scenario, rendered));
+  }
 
-    private String renderClarityReport(Map<String, TraceTree> traces) {
-        return new ClarityReportRenderer().renderSuiteReport(analyzeClarityResults(traces));
-    }
+  private String renderClarityReport(Map<String, TraceTree> traces) {
+    return new ClarityReportRenderer().renderSuiteReport(analyzeClarityResults(traces));
+  }
 
-    private String exportClarityJson(Map<String, TraceTree> traces) {
-        return new ClarityJsonExporter().export(analyzeClarityResults(traces));
-    }
+  private String exportClarityJson(Map<String, TraceTree> traces) {
+    return new ClarityJsonExporter().export(analyzeClarityResults(traces));
+  }
 
-    private Map<String, ClarityResult> analyzeClarityResults(Map<String, TraceTree> traces) {
-        var analyzer = new ClarityAnalyzer();
-        var results = new LinkedHashMap<String, ClarityResult>();
-        for (var entry : traces.entrySet()) {
-            results.put(entry.getKey(), analyzer.analyze(entry.getValue()));
-        }
-        return results;
+  private Map<String, ClarityResult> analyzeClarityResults(Map<String, TraceTree> traces) {
+    var analyzer = new ClarityAnalyzer();
+    var results = new LinkedHashMap<String, ClarityResult>();
+    for (var entry : traces.entrySet()) {
+      results.put(entry.getKey(), analyzer.analyze(entry.getValue()));
     }
+    return results;
+  }
 
-    private static String configParam(ExtensionContext context, String key, String defaultValue) {
-        return context.getConfigurationParameter(key).orElse(defaultValue);
-    }
+  private static String configParam(ExtensionContext context, String key, String defaultValue) {
+    return context.getConfigurationParameter(key).orElse(defaultValue);
+  }
 }

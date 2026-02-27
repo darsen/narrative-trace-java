@@ -1,11 +1,7 @@
 package ai.narrativetrace.agent;
 
 record MethodMetadata(
-        String[] parameterNames,
-        boolean[] redacted,
-        String narratedTemplate,
-        OnErrorEntry[] onErrors
-) {
+    String[] parameterNames, boolean[] redacted, String narratedTemplate, OnErrorEntry[] onErrors) {
 
-    record OnErrorEntry(String template, String exceptionDescriptor) {}
+  record OnErrorEntry(String template, String exceptionDescriptor) {}
 }

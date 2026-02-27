@@ -1,3 +1,10 @@
+plugins {
+    id("narrativetrace-publish")
+}
+
+extra["publishName"] = "NarrativeTrace Diagrams"
+extra["publishDescription"] = "Mermaid and PlantUML sequence diagram generation"
+
 dependencies {
     implementation(project(":narrativetrace-core"))
 

@@ -1,4 +1,4 @@
 package ai.narrativetrace.core.render;
 
-public record TraceMetadata(String scenario, String result) {
-}
+/** Metadata record for trace output containing the scenario title and result status. */
+public record TraceMetadata(String scenario, String result) {}

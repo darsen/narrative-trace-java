@@ -16,3 +16,8 @@ target/
 .settings/
 .classpath
 .project
+.gitsecret/keys/random_seed
+!*.secret
+secret.properties
+
+.jqwik-database

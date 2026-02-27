@@ -5,15 +5,20 @@ import java.time.LocalDate
 
 interface LendingService {
     @Narrated("Borrowing book {isbn} for member {memberId}")
-    fun borrowBook(memberId: String, isbn: String): LoanReceipt
+    fun borrowBook(
+        memberId: String,
+        isbn: String,
+    ): LoanReceipt
 }
 
 class DefaultLendingService(
     private val catalog: CatalogService,
-    private val members: MemberService
+    private val members: MemberService,
 ) : LendingService {
-
-    override fun borrowBook(memberId: String, isbn: String): LoanReceipt {
+    override fun borrowBook(
+        memberId: String,
+        isbn: String,
+    ): LoanReceipt {
         val book = catalog.findBook(isbn)
         if (!book.available) {
             throw BookUnavailableException(isbn)

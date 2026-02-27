@@ -1,5 +1,7 @@
 package ai.narrativetrace.junit5;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
 import ai.narrativetrace.core.event.MethodSignature;
 import ai.narrativetrace.core.event.ParameterCapture;
 import ai.narrativetrace.core.event.TraceNode;
@@ -9,56 +11,54 @@ import ai.narrativetrace.core.output.TraceFileWriter;
 import ai.narrativetrace.core.render.MarkdownRenderer;
 import ai.narrativetrace.core.render.TraceMetadata;
 import ai.narrativetrace.core.tree.DefaultTraceTree;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
-
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
-
-import static org.assertj.core.api.Assertions.assertThat;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 class TraceFileOutputTest {
 
-    @Test
-    void writesMarkdownTraceFileToResolvedPath(@TempDir Path tempDir) throws IOException {
-        var resolver = new OutputDirectoryResolver(tempDir);
-        var writer = new TraceFileWriter();
-        var renderer = new MarkdownRenderer();
+  @Test
+  void writesMarkdownTraceFileToResolvedPath(@TempDir Path tempDir) throws IOException {
+    var resolver = new OutputDirectoryResolver(tempDir);
+    var writer = new TraceFileWriter();
+    var renderer = new MarkdownRenderer();
 
-        var node = new TraceNode(
-                new MethodSignature("OrderService", "placeOrder", List.of(
-                        new ParameterCapture("customerId", "\"C-123\"", false)
-                )),
-                List.of(),
-                new TraceOutcome.Returned("\"order-42\""),
-                412_000_000L
-        );
-        var tree = new DefaultTraceTree(List.of(node));
-        var metadata = new TraceMetadata("Customer places order", "pass");
-        var markdown = renderer.renderDocument(tree, metadata);
+    var node =
+        new TraceNode(
+            new MethodSignature(
+                "OrderService",
+                "placeOrder",
+                List.of(new ParameterCapture("customerId", "\"C-123\"", false))),
+            List.of(),
+            new TraceOutcome.Returned("\"order-42\""),
+            412_000_000L);
+    var tree = new DefaultTraceTree(List.of(node));
+    var metadata = new TraceMetadata("Customer places order", "pass");
+    var markdown = renderer.renderDocument(tree, metadata);
 
-        var filePath = resolver.traceFile("io.example.OrderServiceTest", "customerPlacesOrder");
-        writer.write(markdown, filePath);
+    var filePath = resolver.traceFile("io.example.OrderServiceTest", "customerPlacesOrder");
+    writer.write(markdown, filePath);
 
-        assertThat(filePath).exists();
-        var content = Files.readString(filePath);
-        assertThat(content).startsWith("---\n");
-        assertThat(content).contains("type: trace");
-        assertThat(content).contains("## Trace: OrderService.placeOrder");
-        assertThat(content).contains("**OrderService.placeOrder**");
-    }
+    assertThat(filePath).exists();
+    var content = Files.readString(filePath);
+    assertThat(content).startsWith("---\n");
+    assertThat(content).contains("type: trace");
+    assertThat(content).contains("## Trace: OrderService.placeOrder");
+    assertThat(content).contains("**OrderService.placeOrder**");
+  }
 
-    @Test
-    void skipsWritingWhenTraceIsEmpty(@TempDir Path tempDir) throws IOException {
-        var resolver = new OutputDirectoryResolver(tempDir);
-        var tree = new DefaultTraceTree(List.of());
+  @Test
+  void skipsWritingWhenTraceIsEmpty(@TempDir Path tempDir) throws IOException {
+    var resolver = new OutputDirectoryResolver(tempDir);
+    var tree = new DefaultTraceTree(List.of());
 
-        var filePath = resolver.traceFile("io.example.OrderServiceTest", "emptyTest");
+    var filePath = resolver.traceFile("io.example.OrderServiceTest", "emptyTest");
 
-        // Should not write when tree is empty
-        assertThat(tree.isEmpty()).isTrue();
-        assertThat(filePath).doesNotExist();
-    }
+    // Should not write when tree is empty
+    assertThat(tree.isEmpty()).isTrue();
+    assertThat(filePath).doesNotExist();
+  }
 }

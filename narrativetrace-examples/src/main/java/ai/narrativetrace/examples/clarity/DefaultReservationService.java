@@ -5,26 +5,26 @@ import java.util.UUID;
 
 public class DefaultReservationService implements ReservationService {
 
-    private final AvailabilityChecker availabilityChecker;
-    private final PaymentGateway paymentGateway;
+  private final AvailabilityChecker availabilityChecker;
+  private final PaymentGateway paymentGateway;
 
-    public DefaultReservationService(AvailabilityChecker availabilityChecker,
-                                     PaymentGateway paymentGateway) {
-        this.availabilityChecker = availabilityChecker;
-        this.paymentGateway = paymentGateway;
-    }
+  public DefaultReservationService(
+      AvailabilityChecker availabilityChecker, PaymentGateway paymentGateway) {
+    this.availabilityChecker = availabilityChecker;
+    this.paymentGateway = paymentGateway;
+  }
 
-    @Override
-    public Reservation confirmReservation(String guestId, String roomCategory,
-                                          LocalDate checkInDate, LocalDate checkOutDate) {
-        var dateRange = new DateRange(checkInDate, checkOutDate);
-        var rooms = availabilityChecker.findAvailableRooms(roomCategory, dateRange);
-        var selectedRoom = rooms.get(0);
+  @Override
+  public Reservation confirmReservation(
+      String guestId, String roomCategory, LocalDate checkInDate, LocalDate checkOutDate) {
+    var dateRange = new DateRange(checkInDate, checkOutDate);
+    var rooms = availabilityChecker.findAvailableRooms(roomCategory, dateRange);
+    var selectedRoom = rooms.get(0);
 
-        var reservationId = "RES-" + UUID.randomUUID().toString().substring(0, 8);
-        paymentGateway.authorizePayment(reservationId, selectedRoom.pricePerNight());
+    var reservationId = "RES-" + UUID.randomUUID().toString().substring(0, 8);
+    paymentGateway.authorizePayment(reservationId, selectedRoom.pricePerNight());
 
-        return new Reservation(reservationId, guestId, selectedRoom.roomNumber(),
-                checkInDate, checkOutDate);
-    }
+    return new Reservation(
+        reservationId, guestId, selectedRoom.roomNumber(), checkInDate, checkOutDate);
+  }
 }

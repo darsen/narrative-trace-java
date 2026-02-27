@@ -16,53 +16,56 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 @EnableAsync
 public class ECommerceConfig {
 
-    @Bean
-    NarrativeContext narrativeContext() {
-        var tlc = new ThreadLocalNarrativeContext();
-        var accessor = new NarrativeTraceThreadLocalAccessor(tlc);
-        ContextRegistry.getInstance().registerThreadLocalAccessor(accessor);
-        return new Slf4jNarrativeContext(tlc);
-    }
+  @Bean
+  NarrativeContext narrativeContext() {
+    var tlc = new ThreadLocalNarrativeContext();
+    var accessor = new NarrativeTraceThreadLocalAccessor(tlc);
+    ContextRegistry.getInstance().registerThreadLocalAccessor(accessor);
+    return new Slf4jNarrativeContext(tlc);
+  }
 
-    @Bean
-    ThreadPoolTaskExecutor taskExecutor() {
-        var executor = new ThreadPoolTaskExecutor();
-        executor.setTaskDecorator(new ContextPropagatingTaskDecorator());
-        executor.setCorePoolSize(2);
-        executor.setThreadNamePrefix("async-notify-");
-        executor.initialize();
-        return executor;
-    }
+  @Bean
+  ThreadPoolTaskExecutor taskExecutor() {
+    var executor = new ThreadPoolTaskExecutor();
+    executor.setTaskDecorator(new ContextPropagatingTaskDecorator());
+    executor.setCorePoolSize(2);
+    executor.setThreadNamePrefix("async-notify-");
+    executor.initialize();
+    return executor;
+  }
 
-    @Bean
-    CustomerService customerService() {
-        return new InMemoryCustomerService();
-    }
+  @Bean
+  CustomerService customerService() {
+    return new InMemoryCustomerService();
+  }
 
-    @Bean
-    ProductCatalogService catalogService() {
-        return new InMemoryProductCatalogService();
-    }
+  @Bean
+  ProductCatalogService catalogService() {
+    return new InMemoryProductCatalogService();
+  }
 
-    @Bean
-    InventoryService inventoryService() {
-        return new InMemoryInventoryService();
-    }
+  @Bean
+  InventoryService inventoryService() {
+    return new InMemoryInventoryService();
+  }
 
-    @Bean
-    PaymentService paymentService() {
-        return new InMemoryPaymentService();
-    }
+  @Bean
+  PaymentService paymentService() {
+    return new InMemoryPaymentService();
+  }
 
-    @Bean
-    NotificationService notificationService() {
-        return new JsonPlaceholderNotificationService();
-    }
+  @Bean
+  NotificationService notificationService() {
+    return new JsonPlaceholderNotificationService();
+  }
 
-    @Bean
-    OrderService orderService(CustomerService customerService, ProductCatalogService catalogService,
-                              InventoryService inventoryService, PaymentService paymentService) {
-        return new DefaultOrderService(customerService, catalogService,
-                inventoryService, paymentService);
-    }
+  @Bean
+  OrderService orderService(
+      CustomerService customerService,
+      ProductCatalogService catalogService,
+      InventoryService inventoryService,
+      PaymentService paymentService) {
+    return new DefaultOrderService(
+        customerService, catalogService, inventoryService, paymentService);
+  }
 }

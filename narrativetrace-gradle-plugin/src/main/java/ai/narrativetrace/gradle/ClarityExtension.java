@@ -4,9 +4,9 @@ import org.gradle.api.provider.Property;
 
 public abstract class ClarityExtension {
 
-    public abstract Property<Double> getMinScore();
+  public abstract Property<Double> getMinScore();
 
-    public abstract Property<Integer> getMaxHighIssues();
+  public abstract Property<Integer> getMaxHighIssues();
 
-    public abstract Property<Boolean> getWarnOnly();
+  public abstract Property<Boolean> getWarnOnly();
 }

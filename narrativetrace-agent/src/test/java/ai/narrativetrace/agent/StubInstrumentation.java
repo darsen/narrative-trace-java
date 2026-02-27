@@ -11,81 +11,78 @@ import java.util.jar.JarFile;
 
 abstract class StubInstrumentation implements Instrumentation {
 
-    @Override
-    public void addTransformer(ClassFileTransformer transformer, boolean canRetransform) {
-        addTransformer(transformer);
-    }
+  @Override
+  public void addTransformer(ClassFileTransformer transformer, boolean canRetransform) {
+    addTransformer(transformer);
+  }
 
-    @Override
-    public boolean removeTransformer(ClassFileTransformer transformer) {
-        return false;
-    }
+  @Override
+  public boolean removeTransformer(ClassFileTransformer transformer) {
+    return false;
+  }
 
-    @Override
-    public boolean isRetransformClassesSupported() {
-        return false;
-    }
+  @Override
+  public boolean isRetransformClassesSupported() {
+    return false;
+  }
 
-    @Override
-    public void retransformClasses(Class<?>... classes) throws UnmodifiableClassException {
-    }
+  @Override
+  public void retransformClasses(Class<?>... classes) throws UnmodifiableClassException {}
 
-    @Override
-    public boolean isRedefineClassesSupported() {
-        return false;
-    }
+  @Override
+  public boolean isRedefineClassesSupported() {
+    return false;
+  }
 
-    @Override
-    public void redefineClasses(ClassDefinition... definitions) throws ClassNotFoundException, UnmodifiableClassException {
-    }
+  @Override
+  public void redefineClasses(ClassDefinition... definitions)
+      throws ClassNotFoundException, UnmodifiableClassException {}
 
-    @Override
-    public boolean isModifiableClass(Class<?> theClass) {
-        return false;
-    }
+  @Override
+  public boolean isModifiableClass(Class<?> theClass) {
+    return false;
+  }
 
-    @Override
-    public Class<?>[] getAllLoadedClasses() {
-        return new Class<?>[0];
-    }
+  @Override
+  public Class<?>[] getAllLoadedClasses() {
+    return new Class<?>[0];
+  }
 
-    @Override
-    public Class<?>[] getInitiatedClasses(ClassLoader loader) {
-        return new Class<?>[0];
-    }
+  @Override
+  public Class<?>[] getInitiatedClasses(ClassLoader loader) {
+    return new Class<?>[0];
+  }
 
-    @Override
-    public long getObjectSize(Object objectToSize) {
-        return 0;
-    }
+  @Override
+  public long getObjectSize(Object objectToSize) {
+    return 0;
+  }
 
-    @Override
-    public void appendToBootstrapClassLoaderSearch(JarFile jarfile) {
-    }
+  @Override
+  public void appendToBootstrapClassLoaderSearch(JarFile jarfile) {}
 
-    @Override
-    public void appendToSystemClassLoaderSearch(JarFile jarfile) {
-    }
+  @Override
+  public void appendToSystemClassLoaderSearch(JarFile jarfile) {}
 
-    @Override
-    public boolean isNativeMethodPrefixSupported() {
-        return false;
-    }
+  @Override
+  public boolean isNativeMethodPrefixSupported() {
+    return false;
+  }
 
-    @Override
-    public void setNativeMethodPrefix(ClassFileTransformer transformer, String prefix) {
-    }
+  @Override
+  public void setNativeMethodPrefix(ClassFileTransformer transformer, String prefix) {}
 
-    @Override
-    public boolean isModifiableModule(Module module) {
-        return false;
-    }
+  @Override
+  public boolean isModifiableModule(Module module) {
+    return false;
+  }
 
-    @Override
-    public void redefineModule(Module module, Set<Module> extraReads,
-                               Map<String, Set<Module>> extraExports,
-                               Map<String, Set<Module>> extraOpens,
-                               Set<Class<?>> extraUses,
-                               Map<Class<?>, List<Class<?>>> extraProvides) {
-    }
+  @Override
+  public void redefineModule(
+      Module module,
+      Set<Module> extraReads,
+      Map<String, Set<Module>> extraExports,
+      Map<String, Set<Module>> extraOpens,
+      Set<Class<?>> extraUses,
+      Map<Class<?>, List<Class<?>>> extraProvides) {}
 }

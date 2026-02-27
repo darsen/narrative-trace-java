@@ -1,0 +1,25 @@
+# NarrativeTrace
+
+> Code is the log. Auto-generate human-readable execution traces from method names, parameter names, and return values.
+
+NarrativeTrace is a Java library that eliminates manual logging. It wraps services with tracing proxies (or uses a Java agent) to capture every method call and renders the result as Markdown, prose, diagrams, or JSON. Includes naming clarity analysis that scores code readability.
+
+## Docs
+
+- [Complete Reference](https://narrativetrace.ai/llms-full.txt): Full API reference, module map, configuration, integration guides, architecture decisions, and troubleshooting
+- [Javadoc](https://javadoc.io/doc/ai.narrativetrace): API documentation for all published modules
+- [GitHub](https://github.com/darsen/narrative-trace-java): Source code repository
+
+## Sections in Complete Reference
+
+- Overview and philosophy
+- Quick start (Gradle plugin and manual setup)
+- Module map with dependency graph (14 modules)
+- Core API: NarrativeContext, ThreadLocalNarrativeContext, TracingLevel, NarrativeTraceProxy
+- Data model: TraceTree, TraceNode, MethodSignature, ParameterCapture, TraceOutcome
+- Annotations: @Narrated, @OnError, @NotTraced, @NarrativeSummary
+- Configuration: system properties, junit-platform.properties, Gradle plugin DSL, Spring, agent
+- Integration guides: JDK proxy, JUnit 5, JUnit 4, Spring, servlet filter, SLF4J, Micrometer, Java agent
+- Clarity scoring: five-dimension analysis, NLP components, standalone scanning
+- Architecture decisions: eager serialization, ThreadLocal context, sealed types
+- Troubleshooting: common issues and fixes

@@ -5,25 +5,31 @@ import java.util.Map;
 
 public class InMemoryInventoryService implements InventoryService {
 
-    private final Map<String, Integer> stock = new HashMap<>(Map.of(
-            "SKU-MECHANICAL-KB", 150,
-            "SKU-MOUSE-PAD", 500,
-            "SKU-USB-HUB", 75
-    ));
+  private final Map<String, Integer> stock =
+      new HashMap<>(
+          Map.of(
+              "SKU-MECHANICAL-KB", 150,
+              "SKU-MOUSE-PAD", 500,
+              "SKU-USB-HUB", 75));
 
-    @Override
-    public Reservation reserve(String productId, int quantity) {
-        int available = stock.getOrDefault(productId, 0);
-        if (available < quantity) {
-            throw new IllegalStateException(
-                    "Insufficient stock for " + productId + ": requested " + quantity + ", available " + available);
-        }
-        stock.put(productId, available - quantity);
-        return new Reservation(productId, quantity);
+  @Override
+  public Reservation reserve(String productId, int quantity) {
+    int available = stock.getOrDefault(productId, 0);
+    if (available < quantity) {
+      throw new IllegalStateException(
+          "Insufficient stock for "
+              + productId
+              + ": requested "
+              + quantity
+              + ", available "
+              + available);
     }
+    stock.put(productId, available - quantity);
+    return new Reservation(productId, quantity);
+  }
 
-    @Override
-    public void release(String productId, int quantity) {
-        stock.merge(productId, quantity, Integer::sum);
-    }
+  @Override
+  public void release(String productId, int quantity) {
+    stock.merge(productId, quantity, Integer::sum);
+  }
 }

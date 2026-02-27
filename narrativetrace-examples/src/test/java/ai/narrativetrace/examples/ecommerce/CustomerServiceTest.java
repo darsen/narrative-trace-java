@@ -1,29 +1,29 @@
 package ai.narrativetrace.examples.ecommerce;
 
-import org.junit.jupiter.api.Test;
-
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import org.junit.jupiter.api.Test;
+
 class CustomerServiceTest {
 
-    @Test
-    void findCustomerReturnsCustomerById() {
-        CustomerService service = new InMemoryCustomerService();
+  @Test
+  void findCustomerReturnsCustomerById() {
+    CustomerService service = new InMemoryCustomerService();
 
-        var customer = service.findCustomer("C-1234");
+    var customer = service.findCustomer("C-1234");
 
-        assertThat(customer.id()).isEqualTo("C-1234");
-        assertThat(customer.name()).isNotBlank();
-        assertThat(customer.tier()).isNotNull();
-    }
+    assertThat(customer.id()).isEqualTo("C-1234");
+    assertThat(customer.name()).isNotBlank();
+    assertThat(customer.tier()).isNotNull();
+  }
 
-    @Test
-    void findCustomerThrowsForUnknownId() {
-        CustomerService service = new InMemoryCustomerService();
+  @Test
+  void findCustomerThrowsForUnknownId() {
+    CustomerService service = new InMemoryCustomerService();
 
-        assertThatThrownBy(() -> service.findCustomer("UNKNOWN"))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("UNKNOWN");
-    }
+    assertThatThrownBy(() -> service.findCustomer("UNKNOWN"))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("UNKNOWN");
+  }
 }

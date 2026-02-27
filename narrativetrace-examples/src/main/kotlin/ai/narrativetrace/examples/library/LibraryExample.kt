@@ -9,7 +9,6 @@ import ai.narrativetrace.slf4j.Slf4jNarrativeContext
 import org.slf4j.LoggerFactory
 
 object LibraryExample {
-
     private val logger = LoggerFactory.getLogger(LibraryExample::class.java)
 
     @JvmStatic
@@ -19,15 +18,24 @@ object LibraryExample {
         val proseRenderer = ProseRenderer()
         val mermaidRenderer = MermaidSequenceDiagramRenderer()
 
-        val catalog = NarrativeTraceProxy.trace(
-            InMemoryCatalogService(), CatalogService::class.java, context
-        )
-        val members = NarrativeTraceProxy.trace(
-            InMemoryMemberService(), MemberService::class.java, context
-        )
-        val lending = NarrativeTraceProxy.trace(
-            DefaultLendingService(catalog, members), LendingService::class.java, context
-        )
+        val catalog =
+            NarrativeTraceProxy.trace(
+                InMemoryCatalogService(),
+                CatalogService::class.java,
+                context,
+            )
+        val members =
+            NarrativeTraceProxy.trace(
+                InMemoryMemberService(),
+                MemberService::class.java,
+                context,
+            )
+        val lending =
+            NarrativeTraceProxy.trace(
+                DefaultLendingService(catalog, members),
+                LendingService::class.java,
+                context,
+            )
 
         // --- Scenario 1: Successful borrow ---
         logger.info("=== Scenario 1: Successful Book Borrow ===\n")
