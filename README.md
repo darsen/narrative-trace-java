@@ -2,17 +2,17 @@
 
 > Code is the log.
 
-Method names, parameter names, and return values already describe what code does. Why repeat it in log statements?
+Zero-code logging that uses your method and parameter names as the log. If the trace is unreadable, your code needs refactoring — not more log statements.
 
 ## The problem
 
 Half of this method is logging noise:
 
 ```java
-public OrderResult placeOrder(String customerId, int quantity) {
-    logger.info("Placing order for customer {} with quantity {}", customerId, quantity);
+public OrderResult placeOrder(String customerId, String productId, int quantity) {
+    logger.info("Placing order for customer {} product {} quantity {}", customerId, productId, quantity);
 
-    var inventory = inventoryService.reserve(customerId, quantity);
+    var inventory = inventoryService.reserve(productId, quantity);
     logger.debug("Reserved inventory: {}", inventory);
 
     var payment = paymentService.charge(customerId, inventory.total());
@@ -24,13 +24,13 @@ public OrderResult placeOrder(String customerId, int quantity) {
 }
 ```
 
-The business logic is four lines. The logging is another four. Every developer writes these logs differently — different messages, different levels, different included values. The result is inconsistent, verbose, and tangled with the code it describes.
+The business logic is three lines. The logging is another four. Every developer writes these logs differently — different messages, different levels, different included values. The result is inconsistent, verbose, and tangled with the code it describes.
 
 NarrativeTrace eliminates this entirely:
 
 ```java
-public OrderResult placeOrder(String customerId, int quantity) {
-    var inventory = inventoryService.reserve(customerId, quantity);
+public OrderResult placeOrder(String customerId, String productId, int quantity) {
+    var inventory = inventoryService.reserve(productId, quantity);
     var payment = paymentService.charge(customerId, inventory.total());
     return new OrderResult(payment.transactionId(), inventory.items());
 }
@@ -40,7 +40,7 @@ Pure business logic. The trace is generated automatically from the method names,
 
 ## What you get instead
 
-Wrap your services with a tracing proxy and get execution traces like this:
+Run your code and get execution traces like this:
 
 ```
 OrderService.placeOrder(customerId: "C-1234", productId: "SKU-MECHANICAL-KB", quantity: 2)
@@ -90,6 +90,16 @@ GameManager.handle(input: "Steve")
 
 Same call graph. Same return values. Only names differ. If your code can't tell its own story, it needs refactoring.
 
+## Why this matters for AI-assisted development
+
+Every `logger.info(...)` line is a line that AI coding tools — Claude Code, Copilot, Cursor — have to parse, spend tokens on, and reason around. In a typical service class, logging is 30–50% of the lines. Remove those lines and you get:
+
+- **More business logic per context window** — the same token budget covers more of your actual code.
+- **Cleaner reasoning** — AI sees what the code does, not how it logs what it does.
+- **Signal-only diffs** — pull requests show business logic changes, not mixed logic-and-logging changes.
+
+That's not a vague benefit — it's measurable in tokens.
+
 ## Clarity scoring
 
 If the trace *is* the code, then trace quality *is* code quality. NarrativeTrace includes a clarity analyzer that scores your method, class, and parameter names:
@@ -107,94 +117,25 @@ Overall: 0.92 (high)
 
 Generic names like `processData`, `handleRequest`, `result` score low. Domain-specific names like `reserveInventory`, `customerId` score high. The clarity report is generated automatically when running tests with output enabled.
 
+Clarity scoring is still experimental.
+
+## How it compares
+
+**Structured logging** (SLF4J + MDC) requires you to write log statements. NarrativeTrace generates them from your code structure — no `logger.info()` calls, no message formatting, no MDC wiring.
+
+**Distributed tracing** (OpenTelemetry, Jaeger) tracks request flow across services with spans and trace IDs. NarrativeTrace captures method-level call trees with full parameter values and return values — detail that span-based tracers don't record. NarrativeTrace propagates across threads via Micrometer context-propagation and integrates with SLF4J/MDC, so it can complement your existing distributed tracing stack.
+
+**AOP logging** (Spring AOP, AspectJ) auto-logs method entry/exit but produces flat, mechanical output. NarrativeTrace produces nested call trees and scores your naming quality on top.
+
+NarrativeTrace doesn't replace your production alerting or your service topology maps. It gives you something neither provides: a human-readable execution narrative that doubles as a code quality diagnostic.
+
 ## Quick start
-
-### Proxy (works anywhere)
-
-```java
-var context = new ThreadLocalNarrativeContext();
-var orders = NarrativeTraceProxy.trace(new OrderServiceImpl(), OrderService.class, context);
-
-orders.placeOrder("C-1234", "SKU-KB", 2);
-
-System.out.println(new IndentedTextRenderer().render(context.captureTrace()));
-context.reset();
-```
-
-Services must implement interfaces. The proxy intercepts calls on the interface.
-
-### Spring
-
-```java
-@Configuration
-@EnableNarrativeTrace
-public class AppConfig { }
-```
-
-All beans in the annotated class's package (and subpackages) that implement interfaces are automatically wrapped with tracing proxies.
-
-### JUnit 5
-
-```java
-@ExtendWith(NarrativeTraceExtension.class)
-class OrderServiceTest {
-
-    @Test
-    void customerPlacesOrderSuccessfully(NarrativeContext context) {
-        var orders = NarrativeTraceProxy.trace(orderService, OrderService.class, context);
-        var result = orders.placeOrder("C-1234", "SKU-KB", 2);
-        assertThat(result.totalCharged()).isEqualTo(179.98);
-    }
-}
-```
-
-The extension creates a fresh context per test and injects it as a parameter. Failed tests automatically print the execution trace. Enable `narrativetrace.output=true` in `junit-platform.properties` to write trace files, sequence diagrams, and clarity reports for every test.
-
-### JUnit 4
-
-```java
-public class OrderServiceTest {
-
-    @Rule
-    public NarrativeTraceRule narrativeTrace = new NarrativeTraceRule();
-
-    @Test
-    public void customerPlacesOrder() {
-        NarrativeContext context = narrativeTrace.context();
-        var orders = NarrativeTraceProxy.trace(orderService, OrderService.class, context);
-        orders.placeOrder("C-1234", "SKU-KB", 2);
-    }
-}
-```
-
-The rule creates a fresh context per test. Failed tests automatically print the execution trace. For class-level clarity reports, add a `@ClassRule`:
-
-```java
-public class OrderServiceTest {
-
-    @ClassRule
-    public static NarrativeTraceClassRule classRule = new NarrativeTraceClassRule();
-
-    @Rule
-    public NarrativeTraceRule narrativeTrace = classRule.testRule();
-
-    @Test
-    public void customerPlacesOrder() {
-        NarrativeContext context = narrativeTrace.context();
-        // ...
-    }
-}
-```
-
-Enable file output via system properties: `-Dnarrativetrace.output=true -Dnarrativetrace.outputDir=build/narrativetrace`.
-
-### Java agent
 
 ```bash
 java -javaagent:narrativetrace-agent.jar=packages=com.example.myapp.* -jar your-app.jar
 ```
 
-Instruments all classes in the specified packages using bytecode transformation. No proxy wiring needed.
+Instruments all classes in the specified packages using bytecode transformation. No proxy wiring needed. Also available as a [JDK proxy, Spring auto-wrapper, and JUnit 5/4 extension](documentation/installation-guide.md).
 
 ## Installation
 
@@ -202,32 +143,21 @@ Java 17+. Add the modules you need:
 
 ```kotlin
 // build.gradle.kts
-
-// Required: -parameters flag preserves method parameter names in bytecode
 tasks.withType<JavaCompile> {
     options.compilerArgs.add("-parameters")
 }
 
 dependencies {
-    // Core + proxy — minimum for tracing
-    implementation("ai.narrativetrace:narrativetrace-core:0.1.0-SNAPSHOT")
-    implementation("ai.narrativetrace:narrativetrace-proxy:0.1.0-SNAPSHOT")
-
-    // Pick what you need
-    testImplementation("ai.narrativetrace:narrativetrace-junit5:0.1.0-SNAPSHOT")
-    testImplementation("ai.narrativetrace:narrativetrace-junit4:0.1.0-SNAPSHOT")  // for JUnit 4
-    implementation("ai.narrativetrace:narrativetrace-spring:0.1.0-SNAPSHOT")
-    implementation("ai.narrativetrace:narrativetrace-slf4j:0.1.0-SNAPSHOT")
-    implementation("ai.narrativetrace:narrativetrace-clarity:0.1.0-SNAPSHOT")
-    implementation("ai.narrativetrace:narrativetrace-diagrams:0.1.0-SNAPSHOT")
-    implementation("ai.narrativetrace:narrativetrace-micrometer:0.1.0-SNAPSHOT")
-    implementation("ai.narrativetrace:narrativetrace-agent:0.1.0-SNAPSHOT")
-    implementation("ai.narrativetrace:narrativetrace-servlet:0.1.0-SNAPSHOT")
-    implementation("ai.narrativetrace:narrativetrace-spring-web:0.1.0-SNAPSHOT")
+    implementation("ai.narrativetrace:narrativetrace-core:0.1.0")
+    implementation("ai.narrativetrace:narrativetrace-proxy:0.1.0")
 }
 ```
 
-Without `-parameters`, traces show `arg0`, `arg1` instead of real parameter names. See the [Installation Guide](documentation/installation-guide.md) for details on each integration path.
+The `-parameters` compiler flag is required to preserve method parameter names in bytecode — without it, traces show `arg0`, `arg1` instead of real names.
+
+A Gradle plugin that handles dependencies, compiler flags, and test configuration automatically is in development.
+
+See the [Installation Guide](documentation/installation-guide.md) for agent, Spring, JUnit 5/4, and other integration paths.
 
 ## Modules
 
@@ -245,7 +175,7 @@ Without `-parameters`, traces show `arg0`, `arg1` instead of real parameter name
 | `narrativetrace-agent` | Bytecode-level tracing without proxy wiring. |
 | `narrativetrace-servlet` | Production request lifecycle in any servlet app (no Spring required). |
 | `narrativetrace-spring-web` | Spring `@Configuration` for `narrativetrace-servlet` — auto-wires filter with `ObjectProvider`. |
-| `narrativetrace-examples` | Reference apps: e-commerce (6 scenarios), Minecraft naming comparison, and hotel booking clarity demo. |
+| `narrativetrace-examples` | Reference apps (source only): e-commerce (6 scenarios), Minecraft naming comparison, and hotel booking clarity demo. |
 
 **Typical starting point:** `core` + `proxy` + `junit5`.
 
@@ -292,6 +222,31 @@ NarrativeTrace uses **eager serialization** — parameter values and return valu
 - **Safe rendering:** The built-in `ValueRenderer` handles nulls, strings, numbers, enums, records, collections, arrays, and plain objects. It detects cycles (via identity checks), catches rogue `toString()` implementations, and truncates large values. POJOs without a custom `toString()` are rendered by reflecting over their fields.
 
 The trade-off is that serialization happens on every traced call, whether or not you ever look at the trace. The cost is included in the ~200–300 ns active-path numbers above. For most applications this is negligible, but if you're tracing extremely hot loops, use `TracingLevel.OFF` or `@NotTraced` to exclude them.
+
+### Does it trace private methods?
+
+No — the proxy and agent trace interface methods. But private methods are visible through the service calls they make:
+
+```java
+private void fulfillOrder(Order order) {
+    if (order.isDigital()) {
+        deliveryService.sendDownloadLink(order.customerId(), order.productId());
+    } else {
+        warehouseService.shipPhysical(order.customerId(), order.shippingAddress());
+    }
+    notificationService.confirmOrder(order.customerId(), order.orderId());
+}
+```
+
+The trace shows which branch ran:
+
+```
+OrderService.placeOrder(customerId: "C-1234", productId: "SKU-EBOOK")
+  DeliveryService.sendDownloadLink(customerId: "C-1234", productId: "SKU-EBOOK") -> "https://..."
+  NotificationService.confirmOrder(customerId: "C-1234", orderId: "ORD-001") -> true
+```
+
+No need to trace the `if` — the presence of `sendDownloadLink` and absence of `shipPhysical` tells the story. For the rare case where you need visibility into logic that doesn't call other services, NarrativeTrace integrates with SLF4J — add a targeted `logger.debug()` and it flows into the same output.
 
 ## License
 
